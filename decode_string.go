@@ -101,8 +101,15 @@ func (dec *Decoder) decodeStringBytesOrNull() (val []byte, isNull bool, err erro
 			dec.cursor++
 			var start, end int
 			if start, end, err = dec.getString(); err == nil {
+				// it is wrong to return slice of json because we using ButBeuffer pool at decode.go:UnmarshalJSONObjectWithPool()
+				// so we return the slice of that ByteBuffer, store it on caller's side,
+				// then another thread will take that ByteBuffer from pool and write to it
+				// whereas our thread will read that memory on encodeBuffer()
+				// val = dec.data[start : end-1]
+
+				val = make([]byte, end-start-1)
 				// we do minus one to remove the last quote
-				val = dec.data[start : end-1]
+				copy(val, dec.data[start:end-1])
 				dec.cursor = end
 			}
 			return
